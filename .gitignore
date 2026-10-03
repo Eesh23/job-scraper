@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+
+# Personal data - never commit:
+# your resume and master_resume.yaml
+resume/
+# tailored resumes and job descriptions
+tailored/
+# job database and spreadsheet
+output/
+
+# Downloaded data (re-downloaded automatically)
+data/
+
+# Secrets and OS files
+.env
+.DS_Store

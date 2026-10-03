@@ -1,0 +1,151 @@
+"""Write a resume as a clean one-column .docx (opens in Word, Pages, Google Docs)."""
+
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Inches, Pt
+
+FONT = "Arial"  # matches the PDF (Helvetica); Calibri lays out differently
+SECTION_TITLES = {"education": "Education", "experience": "Experience", "projects": "Projects",
+                  "leadership": "Leadership & Activities"}
+
+
+def render(master: dict, path, tailored: dict | None = None, font_size: float = 10.5, margin: float = 0.5):
+    """Render `master`, or, with `tailored`, only the chosen entries/bullets in
+    the chosen order. Headers (titles, employers, dates) always come from the
+    master so they can't be altered."""
+    doc = Document()
+    _base_styles(doc, font_size, margin)
+
+    _para(doc, master["name"], size=Pt(18), bold=True, align=WD_ALIGN_PARAGRAPH.CENTER, after=0)
+    contact = master.get("contact") or {}
+    line = " | ".join(x for x in [contact.get("email"), contact.get("phone"), contact.get("location"),
+                                  *(contact.get("links") or [])] if x)
+    _para(doc, line, size=Pt(9.5), align=WD_ALIGN_PARAGRAPH.CENTER, after=4)
+
+    headline = (tailored or {}).get("headline") if tailored else master.get("headline")
+    if headline:
+        _para(doc, headline, italic=True, align=WD_ALIGN_PARAGRAPH.CENTER, after=4)
+
+    if master.get("education"):
+        _heading(doc, SECTION_TITLES["education"])
+        for e in master["education"]:
+            _entry_header(doc, e.get("school", ""), e.get("location", ""), e.get("degree", ""), e.get("dates", ""))
+            for d in e.get("details") or []:
+                _bullet(doc, d)
+
+    chosen = _chosen(master, tailored)
+    for section in ("experience", "projects", "leadership"):
+        rows = chosen[section]
+        if not rows:
+            continue
+        _heading(doc, SECTION_TITLES[section])
+        for entry, bullets in rows:
+            if section == "experience":
+                _entry_header(doc, entry.get("company", ""), entry.get("location", ""),
+                              entry.get("title", ""), entry.get("dates", ""))
+            elif section == "projects":
+                name = entry.get("name", "") + (f" | {entry['tech']}" if entry.get("tech") else "")
+                _entry_header(doc, name, entry.get("dates", ""), entry.get("link", ""), "")
+            else:
+                _entry_header(doc, entry.get("org", ""), entry.get("location", ""),
+                              entry.get("title", ""), entry.get("dates", ""))
+            for text in bullets:
+                _bullet(doc, text)
+
+    skills = (tailored or {}).get("skills") if tailored else master.get("skills")
+    other = master.get("other") or []
+    if skills or other:
+        _heading(doc, "Skills" + (" & Other" if other else ""))
+        for group in skills or []:
+            p = _para(doc, "", after=0)
+            _run(p, f"{group['category']}: ", bold=True)
+            _run(p, ", ".join(group["items"]))
+        for line in other:
+            _para(doc, line, after=0)
+
+    doc.save(str(path))
+
+
+def _chosen(master, tailored):
+    out = {s: [] for s in ("experience", "projects", "leadership")}
+    if not tailored:
+        for s in out:
+            out[s] = [(e, [b["text"] for b in e["bullets"]]) for e in master.get(s) or []]
+        return out
+    lookup = {e["id"]: (s, e) for s in out for e in master.get(s) or []}
+    for t in tailored["entries"]:
+        section, entry = lookup[t["id"]]
+        out[section].append((entry, [b["text"] for b in t["bullets"]]))
+    # Experience stays in the master's (chronological) order regardless of relevance.
+    order = {e["id"]: i for i, e in enumerate(master.get("experience") or [])}
+    out["experience"].sort(key=lambda row: order[row[0]["id"]])
+    return out
+
+
+# ---------------------------------------------------------------- docx helpers
+
+def _base_styles(doc, font_size, margin):
+    for section in doc.sections:
+        section.top_margin = section.bottom_margin = Inches(margin)
+        section.left_margin = section.right_margin = Inches(margin)
+    style = doc.styles["Normal"]
+    style.font.name = FONT
+    style.font.size = Pt(font_size)
+    style.element.rPr.rFonts.set(qn("w:eastAsia"), FONT)
+    style.paragraph_format.space_after = Pt(0)
+    style.paragraph_format.space_before = Pt(0)
+
+
+def _para(doc, text, size=None, bold=False, italic=False, align=None, after=2):
+    p = doc.add_paragraph()
+    if text:
+        _run(p, text, size=size, bold=bold, italic=italic)
+    if align is not None:
+        p.alignment = align
+    p.paragraph_format.space_after = Pt(after)
+    return p
+
+
+def _run(p, text, size=None, bold=False, italic=False):
+    r = p.add_run(text)
+    r.bold, r.italic = bold, italic
+    if size:
+        r.font.size = size
+    return r
+
+
+def _heading(doc, title):
+    p = _para(doc, title.upper(), size=Pt(11), bold=True, after=2)
+    p.paragraph_format.space_before = Pt(6)
+    # bottom border under the section title
+    pPr = p._p.get_or_add_pPr()
+    border = OxmlElement("w:pBdr")
+    bottom = OxmlElement("w:bottom")
+    for k, v in (("w:val", "single"), ("w:sz", "6"), ("w:space", "1"), ("w:color", "000000")):
+        bottom.set(qn(k), v)
+    border.append(bottom)
+    pPr.append(border)
+
+
+def _entry_header(doc, left1, right1, left2, right2):
+    """Two lines: bold left / right-aligned right, then italic left / right."""
+    width = doc.sections[0].page_width - doc.sections[0].left_margin - doc.sections[0].right_margin
+    for left, right, bold, italic in ((left1, right1, True, False), (left2, right2, False, True)):
+        left, right = str(left or ""), str(right or "")  # YAML reads "dates: 2025" as a number
+        if not (left or right):
+            continue
+        p = doc.add_paragraph()
+        p.paragraph_format.tab_stops.add_tab_stop(width, WD_TAB_ALIGNMENT.RIGHT)
+        _run(p, left, bold=bold, italic=italic)
+        if right:
+            _run(p, "\t" + right, italic=italic)
+    doc.paragraphs[-1].paragraph_format.space_after = Pt(1)
+
+
+def _bullet(doc, text):
+    p = doc.add_paragraph(style="List Bullet")
+    _run(p, text)
+    p.paragraph_format.left_indent = Inches(0.2)
+    p.paragraph_format.space_after = Pt(0)

@@ -1,0 +1,155 @@
+# Job scraper configuration.
+
+# ---------------------------------------------------------------- sources
+# Each [[sources]] block is one place to pull jobs from. Order matters: when
+# the same job appears in several sources, the link from the EARLIEST source
+# is used, so sources with direct employer links go first.
+
+[[sources]]
+type = "simplify"
+name = "SimplifyJobs - New Grad"
+repo = "SimplifyJobs/New-Grad-Positions"
+branch = "dev"
+# Simplify categories to keep: Software, AI/ML/Data, Hardware, Quant, Product.
+# Empty list = all categories.
+categories = ["Software", "Software Engineering", "AI/ML/Data", "Product"]
+# The Product category also holds unrelated jobs (merchandiser, party host...),
+# so keep only PM / APM / TPM / program / product-owner titles from it.
+category_title_patterns = { Product = "product (manager|management|owner)|associate product|\\bapm\\b|\\btpm\\b|program manager|project manager|product associate" }
+
+[[sources]]
+type = "ricsign"
+name = "ricsign - New Grad SWE"
+repo = "ricsign/Ricsign-New-Grads-Jobs-2027"
+# Tracks in data/v1/jobs.json: new-grad-swe, internship, quant, ai-research
+tracks = ["new-grad-swe"]
+
+[[sources]]
+type = "applyguy"
+name = "ApplyGuy - 2027 New Grad"
+repo = "ApplyGuy/2027-New-Grad-Jobs"
+default_country = "US"  # US-only list; used when a location isn't recognized
+
+[[sources]]
+type = "jobradar"
+name = "JobRadar - Entry Level"
+repo = "Donkey0322/JobRadar-AI"
+path = "job-postings/entry-level.md"
+default_country = "US"
+
+[[sources]]
+type = "speedyapply"
+name = "speedyapply - 2027 SWE New Grad"
+repo = "speedyapply/2027-SWE-College-Jobs"
+branch = "main"
+# file -> country for every row in it ("" = work it out from the location)
+files = { "NEW_GRAD_USA.md" = "US", "NEW_GRAD_INTL.md" = "" }
+
+# ---- startups
+
+[[sources]]
+type = "yc"
+name = "YC Jobs (startups)"
+# /jobs/role/<page> plus /jobs/role/<page>/<city> for each city
+pages = ["software-engineer", "product-manager"]
+cities = ["san-francisco", "new-york", "los-angeles", "seattle", "boston", "austin", "chicago", "remote"]
+roles = ["eng", "product"]          # YC role codes to keep (drops sales, ops, ...)
+experience = ["Any (new grads ok)"] # add "1+ years" to loosen
+
+[[sources]]
+type = "hackernews"
+name = "HN Who is hiring (startups)"
+months = 1  # how many recent monthly threads to read
+
+[[sources]]
+type = "hirly"
+name = "Hirly - New Grad SWE"
+# Matches github.com/Hirly-Me/New-Grad-Software-Engineer-Jobs.
+# Feed: https://hirly.me/api/job-lists/<slug>.json (newest 250 jobs).
+slug = "new-grad-software-engineer-jobs"
+
+# ---------------------------------------------------------------- filters
+[filters]
+# ISO country codes to keep. North America = US + CA by default.
+# Add "MX" if you also want Mexico.
+countries = ["US", "CA"]
+
+# Some remote jobs have no country. Keep them unless the location names a
+# region outside North America (e.g. "Europe (Full Remote)").
+include_remote_without_country = true
+
+# Ignore postings older than this many days (0 = no limit). The big lists
+# keep jobs open for months; this keeps the spreadsheet to recent ones.
+max_age_days = 30
+
+# Drop a job if its title contains any of these whole words (case-insensitive).
+exclude_title_keywords = [
+    # too senior / not full-time
+    "senior", "sr", "staff", "principal", "lead", "director", "head of", "vp",
+    "intern", "internship", "co-op", "manager ii", "engineer ii", "engineer iii",
+    # non-tech jobs that some lists mislabel as Software / AI (e.g. SimplifyJobs
+    # files "Housekeeper" under Software)
+    "technician", "teacher", "tutor", "housekeeper", "nurse", "patient care", "caregiver",
+    "cashier", "driver", "warehouse", "evaluator", "seismologist", "custodian", "receptionist",
+    "postdoctoral", "postdoc",
+]
+
+# Titles with any of these are always kept, even if they contain an excluded
+# word (e.g. "Junior to Senior Fullstack Engineer").
+entry_title_keywords = ["new grad", "new graduate", "junior", "entry level", "entry-level", "early career", "university grad"]
+
+# A title must contain one of these to count as a tech / product role. Some
+# lists file jobs like "Dental Assistant" under Software, so this catches what
+# the exclude list doesn't. Words of 4+ letters match as prefixes ("develop"
+# matches Developer/Development); shorter ones must be whole words ("ai").
+role_keywords = [
+    "engineer", "develop", "software", "programm", "coder", "data", "scien", "analy", "architect",
+    "product", "program", "project", "devops", "sre", "reliability", "ml", "ai", "machine learning",
+    "quant", "secur", "cyber", "cloud", "tech", "solution", "deploy", "system", "research",
+    "full stack", "fullstack", "full-stack", "backend", "back-end", "frontend", "front-end", "web",
+    "mobile", "ios", "android", "infra", "platform", "automation", "qa", "test", "robot",
+    "firmware", "embedded", "computer", "network", "database", "sde", "swe", "apm", "tpm",
+    "member of technical staff", "it", "digital", "statistic", "economist", "fellow",
+    "graduate", "middleware", "gis",
+]
+
+# If non-empty, keep a job only if its title contains at least one of these.
+include_title_keywords = []
+
+# ---------------------------------------------------------------- work authorization
+# Every job is sorted into a spreadsheet sheet:
+#   Best Fit            - in Canada, says it sponsors, or a known H-1B sponsor
+#   Sponsorship Unknown - other US jobs (most never say; TN status may work)
+# and jobs that explicitly say US citizens only are dropped.
+[work_auth]
+# USCIS H-1B Employer Data Hub years to use (downloaded once into data/).
+# Newer years are only on USCIS's dashboard, not as CSV.
+h1b_years = [2022, 2023]
+# Total H-1B approvals over those years to count as a "known sponsor".
+min_h1b_approvals = 10
+# Security clearance (TS/SCI, Secret, polygraph, ITAR) requires US citizenship
+# in practice, so those are dropped too. Set false to keep them.
+drop_clearance = true
+
+# ---------------------------------------------------------------- output
+[output]
+dir = "output"
+database = "jobs.db"
+excel = "jobs.xlsx"
+
+# ---------------------------------------------------------------- tailor.py
+# Custom resumes for the job links you give tailor.py (separate from run.py).
+[tailor]
+# Folder (inside this project) holding your resume PDF/DOCX and the master
+# resume built from it. Paths are relative to this project unless absolute.
+resume_dir = "resume"
+# Your master resume: every bullet/project you might use. Create it with
+#   .venv/bin/python tailor.py --import
+master = "resume/master_resume.yaml"
+output_dir = "tailored"
+# Claude model alias for `claude -p` ("opus", "sonnet", ...); empty = Claude Code's default.
+model = ""
+max_bullets_per_role = 4
+max_projects = 3
+max_bullets_per_project = 3
+max_leadership = 2

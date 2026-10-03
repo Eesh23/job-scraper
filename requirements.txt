@@ -1,0 +1,6 @@
+openpyxl>=3.1
+certifi
+python-docx
+pypdf
+pyyaml
+reportlab

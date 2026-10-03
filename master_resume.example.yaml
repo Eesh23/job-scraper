@@ -1,0 +1,68 @@
+# Example master resume (fictional person) - shows the format tailor.py uses.
+# Yours is created by:  .venv/bin/python tailor.py --import ~/Desktop/Resume/<resume>.pdf
+# Put MORE bullets/projects here than fit on one page; tailoring picks the best per job.
+# Ids are added automatically - you don't need to write them.
+
+name: Alex Example
+headline: ""
+contact:
+  email: alex@example.com
+  phone: (555) 010-0000
+  location: Toronto, ON
+  links:
+    - github.com/alex-example
+    - linkedin.com/in/alex-example
+education:
+  - school: Example University
+    degree: B.Sc. Computer Science
+    location: Toronto, ON
+    dates: Sep 2022 - Apr 2026
+    details:
+      - "Relevant courses: Data Structures, Databases, Machine Learning"
+experience:
+  - title: Software Engineering Intern
+    company: Maple Payments
+    location: Toronto, ON
+    dates: May 2025 - Aug 2025
+    bullets:
+      - Built ETL scripts in Python to move 2M daily transaction records into PostgreSQL
+      - Cut API p95 latency by 35% by adding Redis caching to the merchant lookup service
+      - Wrote integration tests with pytest, raising coverage from 52% to 80%
+      - Helped migrate three services from Heroku to AWS ECS with Docker
+      - Presented a demo of the new reporting dashboard to 40 engineers
+  - title: Data Analyst Intern
+    company: Northern Retail Co.
+    location: Mississauga, ON
+    dates: May 2024 - Aug 2024
+    bullets:
+      - Automated weekly sales reports with SQL and Tableau, saving 6 hours per week
+      - Cleaned and joined data from 4 sources to build a customer churn dataset
+      - Trained a logistic regression churn model in scikit-learn with 0.81 AUC
+projects:
+  - name: StudySync
+    tech: React, Node.js, MongoDB
+    dates: 2025
+    link: github.com/alex-example/studysync
+    bullets:
+      - Built a full-stack app for scheduling study groups used by 300 students
+      - Added real-time chat with WebSockets
+  - name: Resume Ranker
+    tech: Python, FastAPI, Hugging Face
+    dates: 2024
+    link: ""
+    bullets:
+      - Fine-tuned a BERT model to rank resumes against job descriptions
+      - Served predictions through a FastAPI endpoint deployed on Render
+leadership:
+  - title: VP Technology
+    org: Example University Computing Club
+    location: Toronto, ON
+    dates: 2024 - 2025
+    bullets:
+      - Ran 8 hands-on workshops on Git, Python and web development for 150 members
+skills:
+  - category: Languages
+    items: [Python, SQL, JavaScript, TypeScript, Java]
+  - category: Frameworks & Tools
+    items: [React, Node.js, FastAPI, pytest, Docker, AWS, PostgreSQL, Redis, Tableau, scikit-learn]
+other: []
